@@ -1,0 +1,35 @@
+# Large data directories
+data/
+spatial_data/
+*.tif
+*.shp
+*.dbf
+*.csv
+*.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+.ipynb_checkpoints
+*.ipynb_checkpoints
+
+# R
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Renviron
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
