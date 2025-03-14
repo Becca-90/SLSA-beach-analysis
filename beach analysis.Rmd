@@ -1,0 +1,232 @@
+---
+title: "Beach Drowning"
+output: html_document
+date: "2025-02-21"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# Read data, rename
+```{r}
+beach_fatalities <- read.csv("allBeachFatalities.csv")
+
+beach_fatalities_subset <- beach_fatalities %>%
+  select("Environment", "State", "Incident.Type", "Incident.Date", "Incident.Date.Range", "Incident.Time", "Incident.Time.Range", "Victim.Age", "Victim.Gender", "Incident.Location.Category", "Activity.Information", "Fatality.Type", "Additional.Factors", "Victim.Alone", "Victim.Assisted", "Equipment.Used", "Suburb", "Local.Government.Area", "Postcode", "GPS.Latitude..S.", "GPS.Longitude..E.", "Remoteness", "Incident.Financial.Year", "Incident.Season", "Birth...Country", "Birth...Continent", "Nationality", "Residence.Distance.to.Coastline", "Residence.Distance.to.Drowning.Location", "Years.in.Australia", "Visitor.Category", "Rip.Present", "Toxicology.Performed", "Toxicology...Alcohol", "Toxicology...Drugs", "Medical.Injury", "COD", "Ambient.Temperature", "Wind.Strength..km.h.", "Wind.Direction", "Swell..m.", "Tide..m.", "Tide.at.Incident.Time", "SLS.Club", "Distance.to.Lifesaving.Service", "Patrolled.Guarded.Location", "During.Patrol.Season", "During.Patrol.Hours", "Between.SLS.Flags", "Rescued.By", "Resuscitated") %>%
+  rename(
+    environment = Environment,
+    state = State,
+    inc_type = Incident.Type,
+    date = Incident.Date,
+    date_range = Incident.Date.Range,
+    time = Incident.Time,
+    time_range = Incident.Time.Range,
+    age = Victim.Age,
+    sex = Victim.Gender,
+    location = Incident.Location.Category,
+    activity = Activity.Information,
+    fatality_type = Fatality.Type,
+    other_factors = Additional.Factors,
+    victim_alone = Victim.Alone,
+    victim_assisted = Victim.Assisted,
+    equipment = Equipment.Used,
+    suburb = Suburb,
+    LGA = Local.Government.Area,
+    postcode = Postcode,
+    lat = GPS.Latitude..S.,
+    long = GPS.Longitude..E.,
+    remoteness = Remoteness,
+    FY = Incident.Financial.Year,
+    season = Incident.Season,
+    birth_country = Birth...Country,
+    birth_continent = Birth...Continent,
+    nationality = Nationality,
+    res_dist_coast = Residence.Distance.to.Coastline,
+    res_dist_incident = Residence.Distance.to.Drowning.Location,
+    years_in_aus = Years.in.Australia,
+    visitor_cat = Visitor.Category,
+    rip = Rip.Present,
+    toxicology = Toxicology.Performed,
+    tox_alc = Toxicology...Alcohol,
+    tox_drugs = Toxicology...Drugs,
+    med_inj = Medical.Injury,
+    cod = COD,
+    amb_temp = Ambient.Temperature,
+    wind_strength = Wind.Strength..km.h.,
+    wind_dir = Wind.Direction,
+    swell = Swell..m.,
+    tide = Tide..m.,
+    tide_inc_time = Tide.at.Incident.Time,
+    club = SLS.Club,
+    dist_sls = Distance.to.Lifesaving.Service,
+    patrolled_loc = Patrolled.Guarded.Location,
+    patrol_season = During.Patrol.Season,
+    patrol_hours = During.Patrol.Hours,
+    flags = Between.SLS.Flags,
+    rescued = Rescued.By,
+    resus = Resuscitated
+  ) %>%
+  mutate(date = case_when(
+    is.na(date) | date == "" ~ substr(date_range, 1, 10),
+    TRUE ~ date
+  )) %>%
+  filter(date != "unknown") %>%
+  mutate(date2 = dmy(date)) %>%
+  filter(date2 > as.Date("2004-06-30"))
+
+beach_fatalities_subset %>% select(date, date2) %>% View()  
+```
+
+Summary stats
+```{r}
+beach_summary <- beach_fatalities_subset %>%
+  filter(inc_type != "Death (intentional)" & inc_type != "Exclude") %>%
+  mutate(activity = case_when(activity == "" ~ "unknown",
+                              activity != "" ~ activity)) %>%
+  group_by(environment, inc_type, activity) %>%
+  summarise(count = n())
+
+beach_summary %>%
+ggplot(aes(activity, count, col = inc_type, label = count)) +
+  geom_col() +
+  facet_wrap(vars(inc_type)) +
+  theme_classic() +
+  coord_flip() +
+  geom_text(size = 4, nudge_y = 40)
+```
+
+
+```{r}
+# Identify the range of dates in your dataset
+min_date <- min(beach_fatalities_subset$date2, na.rm = TRUE)
+max_date <- max(beach_fatalities_subset$date2, na.rm = TRUE)
+
+# Create a complete date sequence spanning all financial years
+all_dates <- tibble(date = seq.Date(
+  from = as.Date(paste0(year(min_date) - 1, "-07-01")),  # Start from July 1 of the first FY
+  to = as.Date(paste0(year(max_date), "-06-30")),        # End on June 30 of the last FY
+  by = "day"
+))
+
+# Create financial year column
+all_dates <- all_dates %>%
+  mutate(
+    financial_year = case_when(
+      month(date) >= 7 ~ paste0(year(date), "/", substr(year(date) + 1, 3, 4)),
+      month(date) < 7 ~ paste0(year(date) - 1, "/", substr(year(date), 3, 4))
+    ),
+    day_month = format(date, "%d/%m"),
+    # Create a fiscal day of year (1-366) starting July 1
+    fiscal_day = ifelse(
+      month(date) >= 7,
+      yday(date) - yday(as.Date(paste0(year(date), "-07-01"))) + 1,
+      yday(date) + (366 - yday(as.Date(paste0(year(date)-1, "-07-01")))) + 1
+    ),
+    # Create a standardized fiscal year date (fixing the format issues)
+    fiscal_month = ifelse(month(date) >= 7, month(date) - 6, month(date) + 6)
+  )
+# Count incidents by date in original data
+incidents_by_date <- beach_fatalities_subset %>%
+  mutate(date2 = dmy(date)) %>%
+  count(date2) %>%
+  rename(incidents = n)
+
+# Join with the complete date sequence
+complete_data <- all_dates %>%
+  left_join(incidents_by_date, by = join_by(date == date2)) %>%
+  mutate(incidents = replace_na(incidents, 0))
+
+# Calculate running total within each financial year
+result <- complete_data %>%
+  group_by(financial_year) %>%
+  mutate(running_total = cumsum(incidents)) %>%
+  ungroup()
+
+# Join back to original data if needed
+beach_fatalities_subset2 <- beach_fatalities_subset %>%
+  mutate(
+    date = dmy(date),
+    financial_year = case_when(
+      month(date) >= 7 ~ paste0(year(date), "/", substr(year(date) + 1, 3, 4)),
+      month(date) < 7 ~ paste0(year(date) - 1, "/", substr(year(date), 3, 4))
+    ),
+    day_month = format(date, "%d/%m")
+  ) %>%
+  left_join(
+    result %>% select(date, financial_year, running_total),
+    by = c("date", "financial_year")
+  )
+
+# Correctly assign financial years
+beach_fatalities_subset2 <- beach_fatalities_subset2 %>% 
+  mutate(
+    FinYear = ifelse(month(date2) >= 7, 
+                     paste(year(date2), year(date2) + 1, sep = "-"),  
+                     paste(year(date2) - 1, year(date2), sep = "-")),
+    
+    # Convert Date into a common financial year (Jul-Jun)
+    CommonDate = as.POSIXct(ifelse(month(date2) >= 7,  # If July-Dec, keep year 2000
+                                   paste0("2000-", month(date2), "-", day(date2)),
+                                   paste0("2001-", month(date2), "-", day(date2))  # If Jan-Jun, shift to 2001
+                                   ), format="%Y-%m-%d", tz="UTC"),
+    
+    # Extract numeric starting year for color mapping
+    FinYearNum = as.numeric(substr(FinYear, 1, 4))
+  )
+
+# Define x-axis limits (July 1st - June 30th)
+x_min <- as.POSIXct("2000-07-01", tz = "UTC")
+x_max <- as.POSIXct("2001-06-30", tz = "UTC")
+
+# Ensure DayMonth is ordered correctly from July to June
+ordered_dates <- seq(as.Date("2000-07-01"), as.Date("2001-06-30"), by = "day")
+ordered_labels <- format(ordered_dates, "%d-%b")  # Create proper ordering
+beach_fatalities_subset2$DayMonth <- factor(beach_fatalities_subset2$DayMonth, levels = ordered_labels, ordered = TRUE)
+```
+
+
+```{r}
+library(scales)
+
+beach_fatalities_subset2 %>%
+  ggplot(aes(x = CommonDate, y = running_total, group = FinYear, col = FinYearNum)) +
+    scale_color_viridis_c(option = "plasma") +
+    geom_line() +
+  scale_x_datetime(
+    date_labels = "%b",  # Show only month names (Jan, Feb, ..., Dec)
+    date_breaks = "1 month",  # Ensure all months appear on the x-axis
+    limits = c(x_min, x_max)  # Force axis to start at July and end at June
+  ) +
+    theme_classic()
+```
+
+
+```{r}
+beach_fatalities_geo <- beach_fatalities_subset %>%
+  select(date, time, time_range, lat, long) %>%
+  mutate(
+    time_range = sub("-.*", "", time_range),  # Remove everything after "-" in time_range
+    time = case_when(
+      time == "" | time == "unknown" ~ time_range,  # Replace NA time with cleaned time_range
+      TRUE ~ time  # Keep existing time values
+    ),
+    date2 = as.Date(date, format = "%d/%m/%Y"),
+    time2 = case_when(
+      grepl("^[0-9]{1,2}:[0-9]{2}", time) ~ format(as.POSIXct(time, format = "%H:%M"), "%H"),  # Standard HH:MM
+      grepl("^[0-9]{1,2}:[0-9]{2}:[0-9]{2}", time) ~ format(as.POSIXct(time, format = "%H:%M:%S"), "%H"),  # HH:MM:SS
+      TRUE ~ NA_character_  # If format doesn't match, return NA
+    )
+  ) %>%
+  na.omit(time2) %>%
+  select(-c(time, date, time_range))
+
+write_csv(beach_fatalities_geo, "beach_fatalities_geo.csv")
+```
+
