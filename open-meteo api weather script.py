@@ -84,7 +84,11 @@ def get_historical_weather_from_dataframe(df):
                     "temperature_celsius": hourly_data["temperature_2m"], # renames API's field names to more descriptive names
                     "humidity_percent": hourly_data["relativehumidity_2m"],
                     "precipitation_mm": hourly_data["precipitation"],
-                    "wind_speed_kmh": hourly_data["windspeed_10m"]
+                    "wind_speed_kmh": hourly_data["windspeed_10m"],
+                    "wind_direction_degrees": hourly_data["wind_direction_10m"],
+                    "pressure_msl_hpa": hourly_data["pressure_msl"],
+                    "cloud_cover_percent": hourly_data["cloud_cover"],
+                    "wind_gusts_kmh": hourly_data["wind_gusts_10m"]
                 })
                 
                 # Sets the "datetime" column as the DataFrame's index
@@ -155,8 +159,8 @@ if __name__ == "__main__":
         print(f"Saved all weather data to {output_dir}/all_weather_data.csv")
         
         # Optionally, save individual files
-        for key, df in results_dict.items():
-            lat, lon, date = key
-            filename = f"{output_dir}/weather_{lat}_{lon}_{date}.csv"
-            df.to_csv(filename)
-            print(f"Saved {filename}")
+        # for key, df in results_dict.items():
+        #   lat, lon, date = key
+        #   filename = f"{output_dir}/weather_{lat}_{lon}_{date}.csv"
+        #   df.to_csv(filename)
+        #   print(f"Saved {filename}")
