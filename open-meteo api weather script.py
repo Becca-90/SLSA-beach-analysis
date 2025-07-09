@@ -179,24 +179,24 @@ def main():
     print("Starting Australian wave data extraction...")
     
     # Check if fatalities.csv exists
-    if not os.path.exists('fatalities.csv'):
-        print("Error: fatalities.csv not found in the current directory.")
+    if not os.path.exists('all_weather_data.csv'):
+        print("Error: all_weather_data.csv not found in the current directory.")
         return
     
     # Load input data
     try:
-        df = pd.read_csv('fatalities.csv')
+        df = pd.read_csv('all_weather_data.csv')
         
         # Check if required columns exist
         required_cols = ['lat', 'long', 'date2']
         for col in required_cols:
             if col not in df.columns:
-                print(f"Error: Required column '{col}' not found in fatalities.csv")
+                print(f"Error: Required column '{col}' not found in all_weather_data.csv")
                 return
                 
-        print(f"Loaded {len(df)} records from fatalities.csv")
+        print(f"Loaded {len(df)} records from all_weather_data.csv")
     except Exception as e:
-        print(f"Error loading fatalities.csv: {str(e)}")
+        print(f"Error loading all_weather_data.csv: {str(e)}")
         return
     
     # Create output directory if it doesn't exist
