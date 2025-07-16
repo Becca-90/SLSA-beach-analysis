@@ -3,13 +3,14 @@ import sys
 import os
 
 # Set up workspace and parameters
-arcpy.env.workspace = r"C:\Users\RebeccaStolper\Documents\ArcGIS\Projects\Aus Coast Map\Aus Coast Map.gdb"
+main_workspace = r"C:\Users\RebeccaStolper\Documents\ArcGIS\Projects\Aus Coast Map\Aus Coast Map.gdb"
+arcpy.env.workspace = main_workspace
 arcpy.env.overwriteOutput = True
 
 # Input parameters - UPDATED FOR SUBURBS
 coastline_buffer = "Aus_coastline"  # Your coastline buffer layer
 lga_boundaries = "Suburbs"  # Your suburb boundaries layer
-lga_name_field = "SAL_NAME21"  # Field containing suburb names (check your actual field name)
+lga_name_field = "SAL_NAME21"  # Field containing suburb names
 output_workspace = r"C:\Users\RebeccaStolper\Documents\ArcGIS\Projects\Aus Coast Map\Output"  # Where to save results
 cell_size = "10"  # Grid cell size in meters
 
@@ -49,7 +50,7 @@ def process_lga(suburb_name):
         if count == 0:
             print(f"  - No coastline found in {suburb_name}, skipping...")
             arcpy.management.Delete(coastline_clipped)
-            return False
+            return "skipped"
         
         # Step 3: Get extent of clipped coastline
         desc = arcpy.Describe(coastline_clipped)
@@ -70,7 +71,7 @@ def process_lga(suburb_name):
         if total_cells > 10000000:  # 10 million cell safety limit for suburbs
             print(f"  - Warning: {suburb_name} would create {total_cells:,} cells, skipping...")
             arcpy.management.Delete(coastline_clipped)
-            return False
+            return "failed"
         
         print(f"  - Creating fishnet with {total_cells:,} cells...")
         
@@ -98,16 +99,17 @@ def process_lga(suburb_name):
         arcpy.management.Delete(fishnet_output)
         
         print(f"  - Successfully processed {suburb_name}")
-        return True
+        return "success"
         
     except Exception as e:
         print(f"  - Error processing {suburb_name}: {str(e)}")
-        return False
+        return "failed"
 
 def main():
     """Main processing function"""
     print("Starting automated coastal suburb fishnet processing...")
     print(f"Cell size: {cell_size}m")
+    print(f"Main workspace: {main_workspace}")
     print(f"Output workspace: {output_workspace}")
     print("-" * 50)
     
@@ -115,7 +117,8 @@ def main():
     suburb_names = []
     with arcpy.da.SearchCursor(lga_boundaries, [lga_name_field]) as cursor:
         for row in cursor:
-            suburb_names.append(row[0])
+            if row[0] is not None:  # Skip null values
+                suburb_names.append(row[0])
     
     print(f"Found {len(suburb_names)} suburbs to process")
     
@@ -123,16 +126,20 @@ def main():
     successful = 0
     failed = 0
     skipped = 0
+    successful_layers = []
     
     for i, suburb_name in enumerate(suburb_names, 1):
         print(f"\n[{i}/{len(suburb_names)}] Processing: {suburb_name}")
         
         result = process_lga(suburb_name)
-        if result:
+        if result == "success":
             successful += 1
-        elif result is False:
+            # Track successful layer names for merging
+            clean_name = clean_filename(suburb_name)
+            successful_layers.append(f"Fishnet_Clipped_{clean_name}")
+        elif result == "failed":
             failed += 1
-        else:
+        elif result == "skipped":
             skipped += 1
     
     print("\n" + "="*50)
@@ -142,23 +149,42 @@ def main():
     print(f"Skipped (no coastline): {skipped}")
     print(f"Total: {len(suburb_names)}")
     
-    # Optionally merge all results
-    if successful > 0:
-        print("\nMerging all fishnet results...")
+    # Merge all successful results
+    if successful > 0 and len(successful_layers) > 0:
+        print(f"\nMerging {len(successful_layers)} successful fishnet results...")
         try:
-            # Find all fishnet outputs
-            arcpy.env.workspace = output_workspace
-            fishnet_layers = arcpy.ListFeatureClasses("Fishnet_Clipped_*")
+            # Create merged output in the main geodatabase
+            merged_output = "Australia_Coastal_Fishnet_10m_Suburbs"
+            merged_path = os.path.join(main_workspace, merged_output)
             
-            if len(fishnet_layers) > 0:
-                merged_output = "Australia_Coastal_Fishnet_10m_Suburbs"
-                arcpy.management.Merge(fishnet_layers, merged_output)
-                print(f"Merged {len(fishnet_layers)} fishnet layers into {merged_output}")
+            print(f"Merging to: {merged_path}")
+            arcpy.management.Merge(successful_layers, merged_path)
+            
+            print(f"Successfully merged {len(successful_layers)} fishnet layers into {merged_output}")
+            print(f"Merged layer saved to: {merged_path}")
+            
+            # Get count of final merged features
+            result = arcpy.management.GetCount(merged_path)
+            total_features = int(result[0])
+            print(f"Total features in merged dataset: {total_features:,}")
+            
+            # Optional: Export to shapefile in output folder
+            try:
+                shapefile_path = os.path.join(output_workspace, f"{merged_output}.shp")
+                arcpy.conversion.FeatureClassToShapefile(merged_path, output_workspace)
+                print(f"Also exported to shapefile: {shapefile_path}")
+            except Exception as e:
+                print(f"Warning: Could not export to shapefile: {str(e)}")
             
         except Exception as e:
             print(f"Error merging results: {str(e)}")
+            print("Individual fishnet layers are still available in the geodatabase")
+    else:
+        print("No successful results to merge")
     
     print("\nScript completed!")
+    print(f"Check your geodatabase: {main_workspace}")
+    print(f"And output folder: {output_workspace}")
 
 if __name__ == "__main__":
     main()
