@@ -134,7 +134,7 @@ def pointdata_direct_url(variables,
 # Call the function
 result = pointdata_direct_url(
     variables=['daily_rain', 'max_temp', 'min_temp'],
-    username="rebecca.stolper@hotmail.com",
+    username="EMAIL",
     password="apirequest",
     start="20200101",
     finish="20201231",
