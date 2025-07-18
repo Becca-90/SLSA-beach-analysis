@@ -29,8 +29,6 @@ def get_bom_wave_data(lat, lon, date_str):
         base_url = "https://dapds00.nci.org.au/thredds/dodsC/auswave/australia_4m"
         
         # Construct query for the specific date
-        # Note: In a real implementation, you would need to determine the exact file pattern
-        # based on the date you're looking for - this is simplified
         year = date_obj.strftime('%Y')
         month = date_obj.strftime('%m')
         day = date_obj.strftime('%d')
@@ -44,10 +42,6 @@ def get_bom_wave_data(lat, lon, date_str):
             
             # Full datetime string
             datetime_str = f"{year}-{month}-{day}T{hour_str}:00:00Z"
-            
-            # In a real implementation, you would construct the proper API call to BOM's service
-            # For demonstration purposes, I'm creating a placeholder for how you would structure this
-            # to work with Australia's Bureau of Meteorology data service
             
             # Placeholder for API call - in reality, this would be a more complex OPeNDAP query
             # or a different API specific to BOM's wave services
