@@ -141,7 +141,7 @@ data = pointdata(['daily_rain', 'max_temp'],
 
 # Or using lat/lon
 data = pointdata(variables=['daily_rain', 'max_temp', 'min_temp'],
-                username="rebecca.stolper@hotmail.com",
+                username="EMAIL",
                 password="apirequest",
                 start="20200101",
                 finish="20201231",
