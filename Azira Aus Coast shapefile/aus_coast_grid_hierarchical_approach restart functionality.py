@@ -9,7 +9,8 @@ arcpy.env.overwriteOutput = True
 
 # Input parameters - UPDATED FOR 5KM GRID TILES
 coastline_buffer = "coast_water_combined_buffer"  # Your coastline buffer layer
-output_workspace = r"C:\Users\RebeccaStolper\Documents\ArcGIS\Projects\Aus Coast Map\Output"  # Where to save results
+output_workspace = r"D:\AusCoastline"
+#r"C:\Users\RebeccaStolper\Documents\ArcGIS\Projects\Aus Coast Map\Output"  # Where to save results
 cell_size = "10"  # Final fishnet cell size in meters
 tile_size = 5000  # 5km tiles in meters
 

@@ -232,43 +232,61 @@ def main():
     if successful > 0:
         print("\nMerging all fishnet results...")
         try:
-            # Find all fishnet outputs in current geodatabase
-            arcpy.env.workspace = output_workspace
+            # Current geodatabase where fishnets are actually being created
+            current_gdb = r"C:\Users\RebeccaStolper\Documents\ArcGIS\Projects\Aus Coast Map\Aus Coast Map.gdb"
+            
+            # Find all fishnet outputs in current geodatabase (where they're actually saved)
+            arcpy.env.workspace = current_gdb
             current_fishnets = arcpy.ListFeatureClasses("Fishnet_Clipped_Tile_*")
+            if current_fishnets is None:
+                current_fishnets = []
             
             # Also check external drive for existing tiles
             external_gdb = r"E:\AusCoastline\Aus Coast Map.gdb"
             external_fishnets = []
             try:
-                arcpy.env.workspace = external_gdb
-                external_fishnets = arcpy.ListFeatureClasses("Fishnet_Clipped_Tile_*")
-            except:
-                print("Could not access external drive geodatabase")
+                if arcpy.Exists(external_gdb):
+                    arcpy.env.workspace = external_gdb
+                    external_fishnets_temp = arcpy.ListFeatureClasses("Fishnet_Clipped_Tile_*")
+                    if external_fishnets_temp is not None:
+                        external_fishnets = external_fishnets_temp
+                else:
+                    print(f"External geodatabase does not exist: {external_gdb}")
+            except Exception as e:
+                print(f"Could not access external drive geodatabase: {e}")
             
             # Combine all fishnet paths
             all_fishnets = []
             
-            # Add current geodatabase feature classes
-            arcpy.env.workspace = output_workspace
+            # Add current geodatabase feature classes (full paths)
             for fishnet in current_fishnets:
-                all_fishnets.append(fishnet)
+                all_fishnets.append(os.path.join(current_gdb, fishnet))
             
-            # Add external geodatabase feature classes with full paths
+            # Add external geodatabase feature classes (full paths)
             for fishnet in external_fishnets:
                 all_fishnets.append(os.path.join(external_gdb, fishnet))
             
             print(f"Found {len(all_fishnets)} fishnet layers to merge:")
-            print(f"  - {len(current_fishnets)} from current geodatabase")
-            print(f"  - {len(external_fishnets)} from external drive")
+            print(f"  - {len(current_fishnets)} from current geodatabase: {current_gdb}")
+            print(f"  - {len(external_fishnets)} from external drive: {external_gdb}")
             
             if len(all_fishnets) > 0:
-                # Save merged result to current geodatabase
+                # Reset workspace to current geodatabase for output
+                arcpy.env.workspace = current_gdb
                 merged_output = "Australia_Coastal_Fishnet_10m_5km_Tiles_Complete"
                 arcpy.management.Merge(all_fishnets, merged_output)
                 print(f"Merged {len(all_fishnets)} fishnet layers into {merged_output}")
+                print(f"Merged output saved to: {current_gdb}")
+            else:
+                print("No fishnet layers found to merge")
             
         except Exception as e:
             print(f"Error merging results: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+    # Reset workspace back to original
+    arcpy.env.workspace = r"C:\Users\RebeccaStolper\Documents\ArcGIS\Projects\Aus Coast Map\Aus Coast Map.gdb"
     
     # Clean up temporary tile layer
     if tiles_layer:
